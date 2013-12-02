@@ -16,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.stericson.RootTools.RootTools;
+import com.stericson.RootTools.execution.Command;
 import com.stericson.RootTools.execution.CommandCapture;
 
 import org.apache.http.HttpResponse;
@@ -40,6 +41,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
+
+    public static final boolean DEBUG = false;
 
     public static String onDeviceVersion = null;
     public static String onServerVersion = null;
@@ -130,18 +133,57 @@ public class MainActivity extends Activity {
 
     public void installUpdate(){
         try {
-            CommandCapture command = new CommandCapture(0,"rm -f cache/recovery/openrecoveryscript",
-                    "echo install /sdcard/OmniRomOTA/" + onServerVersion + " >> /cache/recovery/openrecoveryscript",
-                    "echo wipe cache >> /cache/recovery/openrecoveryscript",
-                    "echo wipe dalvik >> /cache/recovery/openrecoveryscript",
-                    "reboot recovery");
-            RootTools.getShell(true).add(command);
+            Command commandmd5 = new Command(0, "md5sum /sdcard/OmniRomOTA/" + onServerVersion)
+            {
+                @Override
+                public void commandOutput(int i, String s) {
+                    Log.e("OmniRom", "Command Output " + s);
+                    try{
+                        String file = ReadFileHelper.getStringFromFile("/sdcard/OmniRomOTA/" + onServerVersion + ".md5sum").split(" ")[0];
+                        String md5 = s.split(" ")[0];
+                        if(file.equals(md5))
+                        {
+                            if(!DEBUG)
+                            {
+                                CommandCapture command = new CommandCapture(0,"rm -f cache/recovery/openrecoveryscript",
+                                    "echo install /sdcard/OmniRomOTA/" + onServerVersion + " >> /cache/recovery/openrecoveryscript",
+                                    "echo wipe cache >> /cache/recovery/openrecoveryscript",
+                                    "echo wipe dalvik >> /cache/recovery/openrecoveryscript",
+                                    "reboot recovery");
+                                RootTools.getShell(true).add(command);
+                            }else
+                            {
+                                Toast.makeText(MainActivity.this, "DEBUG Flash File", Toast.LENGTH_SHORT).show();
+                            }
+                        }else {
+                            Toast.makeText(MainActivity.this, "File Incomplete", Toast.LENGTH_SHORT).show();
+                            btUpdate.setEnabled(true);
+                            btUpdate.setText("Download Update");
+                        }
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void commandTerminated(int i, String s) {
+                    Log.e("OmniRom", "Command Terminated " + s);
+                }
+
+                @Override
+                public void commandCompleted(int i, int i2) {
+                     Log.e("OmniRom", "Command Completed");
+                }
+            };
+            RootTools.getShell(true).add(commandmd5);
         } catch (Exception e) {
             e.printStackTrace();
+            Toast.makeText(getBaseContext(), "Install Failed", Toast.LENGTH_SHORT).show();
         }
     }
 
     public boolean isUpdate(String currentVersion, String newVersion){
+        if(DEBUG) return true;
         if(Integer.parseInt(currentVersion.split("-")[2]) < Integer.parseInt(newVersion.split("-")[2]))
             return true;
         return false;
@@ -396,7 +438,7 @@ public class MainActivity extends Activity {
 
                     // download the file
                     input = connection.getInputStream();
-                    output = new FileOutputStream("/sdcard/OmniRomOTA/" + onServerVersion.replace(".zip", ".md5sum"));
+                    output = new FileOutputStream("/sdcard/OmniRomOTA/" + onServerVersion + ".md5sum");
 
                     byte data[] = new byte[65536];
                     long total = 0;
