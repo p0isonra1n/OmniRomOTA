@@ -1,28 +1,20 @@
 package com.isaacparker.omniromota;
 
 import android.app.Activity;
-import android.app.ActionBar;
-import android.app.Fragment;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.PowerManager;
-import android.text.Html;
-import android.text.Spanned;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.os.Build;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.isaacparker.omniromota.CommandHelper;
 import com.stericson.RootTools.RootTools;
 import com.stericson.RootTools.execution.CommandCapture;
 
@@ -41,12 +33,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,6 +55,8 @@ public class MainActivity extends Activity {
     Button btInstall;
     ProgressBar pbUpdate;
 
+    final DownloadMD5Task dmd5task = new DownloadMD5Task(MainActivity.this);
+    final DownloadRomTask dTask = new DownloadRomTask(MainActivity.this);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,7 +88,7 @@ public class MainActivity extends Activity {
         //Update code in getServerVersion
 
         //Download Update Button
-        final DownloadTask dTask = new DownloadTask(getBaseContext());
+
         btUpdate.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 //Make sure directory exits
@@ -122,6 +113,7 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 if(downloading){
                     dTask.cancel(true);
+                    dmd5task.cancel(true);
                     btUpdate.setEnabled(true);
                     btUpdate.setText("Download Update");
                     downloading = false;
@@ -261,11 +253,11 @@ public class MainActivity extends Activity {
         }
     }
 
-    private class DownloadTask extends AsyncTask<String, Integer, String> {
+    private class DownloadRomTask extends AsyncTask<String, Integer, String> {
 
         private Context context;
 
-        public DownloadTask(Context context) {
+        public DownloadRomTask(Context context) {
             this.context = context;
         }
 
@@ -348,7 +340,112 @@ public class MainActivity extends Activity {
         protected void onProgressUpdate(Integer... progress) {
             super.onProgressUpdate(progress);
             // if we get here, length is known, now set indeterminate to false
-            btUpdate.setText(String.valueOf(progress[0]) + "%");
+            btUpdate.setText("Downloading ROM " + String.valueOf(progress[0]) + "%");
+            pbUpdate.setVisibility(ProgressBar.VISIBLE);
+            pbUpdate.setIndeterminate(false);
+            pbUpdate.setMax(100);
+            pbUpdate.setProgress(progress[0]);
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            if (result != null){
+                Toast.makeText(context,"Download error: "+result, Toast.LENGTH_LONG).show();
+            }
+            else{
+                dmd5task.execute(dlAddress + deviceName + "/" + onServerVersion.replace(".zip", ".md5sum"));
+            }
+        }
+    }
+
+    private class DownloadMD5Task extends AsyncTask<String, Integer, String> {
+
+        private Context context;
+
+        public DownloadMD5Task(Context context) {
+            this.context = context;
+        }
+
+        @Override
+        protected String doInBackground(String... sUrl) {
+            // take CPU lock to prevent CPU from going off if the user
+            // presses the power button during download
+            PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                    getClass().getName());
+            wl.acquire();
+
+            try {
+                InputStream input = null;
+                OutputStream output = null;
+                HttpURLConnection connection = null;
+                try {
+                    URL url = new URL(sUrl[0]);
+                    connection = (HttpURLConnection) url.openConnection();
+                    connection.connect();
+
+                    // expect HTTP 200 OK, so we don't mistakenly save error report
+                    // instead of the file
+                    if (connection.getResponseCode() != HttpURLConnection.HTTP_OK)
+                        return "Server returned HTTP " + connection.getResponseCode()
+                                + " " + connection.getResponseMessage();
+
+                    // this will be useful to display download percentage
+                    // might be -1: server did not report the length
+                    int fileLength = connection.getContentLength();
+
+                    // download the file
+                    input = connection.getInputStream();
+                    output = new FileOutputStream("/sdcard/OmniRomOTA/" + onServerVersion.replace(".zip", ".md5sum"));
+
+                    byte data[] = new byte[65536];
+                    long total = 0;
+                    int count;
+                    while ((count = input.read(data)) != -1) {
+                        // allow canceling with back button
+                        if (isCancelled())
+                            return null;
+                        total += count;
+                        // publishing the progress....
+                        if (fileLength > 0) // only if total length is known
+                            publishProgress((int) (total * 100 / fileLength));
+                        output.write(data, 0, count);
+                    }
+                } catch (Exception e) {
+                    return e.toString();
+                } finally {
+                    try {
+                        if (output != null)
+                            output.close();
+                        if (input != null)
+                            input.close();
+                    }
+                    catch (IOException ignored) { }
+
+                    if (connection != null)
+                        connection.disconnect();
+                }
+            } finally {
+                wl.release();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            Toast.makeText(getBaseContext(), "Download Started", Toast.LENGTH_SHORT).show();
+            btUpdate.setEnabled(false);
+            downloading = true;
+            btInstall.setEnabled(true);
+            btInstall.setText("Cancel Download");
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... progress) {
+            super.onProgressUpdate(progress);
+            // if we get here, length is known, now set indeterminate to false
+            btUpdate.setText("Downloading MD5" + String.valueOf(progress[0]) + "%");
             pbUpdate.setVisibility(ProgressBar.VISIBLE);
             pbUpdate.setIndeterminate(false);
             pbUpdate.setMax(100);
