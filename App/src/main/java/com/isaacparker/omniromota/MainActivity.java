@@ -80,6 +80,11 @@ public class MainActivity extends Activity {
 
         pbUpdate = (ProgressBar)findViewById(R.id.pbUpdate);
 
+        if (!RootTools.isAccessGiven()) {
+            Toast.makeText(getBaseContext(), "Root is required", Toast.LENGTH_SHORT).show();
+            finish();
+        }
+
         //Get Versions
         getDeviceVersion();
         getServerVersionTask taskServer = new getServerVersionTask();
