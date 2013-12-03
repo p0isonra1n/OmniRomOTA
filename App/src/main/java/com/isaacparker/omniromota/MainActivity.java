@@ -48,6 +48,8 @@ public class MainActivity extends Activity {
     public static String onDeviceVersion = null;
     public static String onServerVersion = null;
     public static String deviceName = null;
+    public static String MD5Device = null;
+    public static String MD5Server = null;
 
     public final String dlAddress = "http://dl.omnirom.org/";
     public final String TAG = "OmniRomOTA";
@@ -100,16 +102,60 @@ public class MainActivity extends Activity {
                 //Make sure directory exits
                 File wallpaperDirectory = new File("/sdcard/OmniRomOTA/");
                 wallpaperDirectory.mkdirs();
+
                 File file = new File("/sdcard/OmniRomOTA/" + onServerVersion);
-                if(file.exists() && file.length() > 104857600)
+                if(file.exists())
                 {
-                    btUpdate.setEnabled(false);
-                    btUpdate.setText("Update Already Downloaded");
-                    downloading = false;
-                    btInstall.setEnabled(true);
-                    btInstall.setText("Install Update");
+                    try {
+                        Command commandmd5 = new Command(0, "md5sum /sdcard/OmniRomOTA/" + onServerVersion)
+                        {
+                            @Override
+                            public void commandOutput(int i, String s) {
+                                try{
+                                    Log.i(TAG, "Reading file MD5 as file exists");
+                                    File filemd5 = new File("/sdcard/OmniRomOTA/" + onServerVersion + ".md5sum");
+                                    if(filemd5.exists()){
+                                        String file = ReadFileHelper.getStringFromFile("/sdcard/OmniRomOTA/" + onServerVersion + ".md5sum").split(" ")[0];
+                                        String md5 = s.split(" ")[0];
+                                        Log.i(TAG, "Device MD5: " + md5 + " Server MD5: " + file);
+                                        if(file.equals(md5)){
+                                            Log.i(TAG, "Downloaded file matches MD5");
+                                            btUpdate.setEnabled(false);
+                                            btUpdate.setText("Update Already Downloaded");
+                                            downloading = false;
+                                            btInstall.setEnabled(true);
+                                            btInstall.setText("Install Update");
+                                        }else{
+                                            Log.i(TAG, "MD5 does not match redownloading file");
+                                            Toast.makeText(MainActivity.this, "Incomplete file redownloading file",Toast.LENGTH_SHORT).show();
+                                            dTask.execute(dlAddress + deviceName + "/" + onServerVersion);
+                                        }
+                                    }else{
+                                        Log.i(TAG, "MD5sum file does not exist, Download did not complete");
+                                        dTask.execute(dlAddress + deviceName + "/" + onServerVersion);
+                                    }
+                                }catch(Exception e){
+                                    e.printStackTrace();
+                                }
+                            }
+                            @Override
+                            public void commandTerminated(int i, String s) {
+                                Log.e(TAG, "MD5 Command Terminated " + s);
+                            }
+
+                            @Override
+                            public void commandCompleted(int i, int i2) {
+                                Log.i(TAG, "MD5 Command Completed");
+                            }
+                        };
+                        RootTools.getShell(true).add(commandmd5).wait();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
                 }
                 else{
+                    Log.i(TAG, "File does not exist, downloading file");
                     dTask.execute(dlAddress + deviceName + "/" + onServerVersion);
                 }
             }
@@ -404,6 +450,10 @@ public class MainActivity extends Activity {
             if (result != null){
                 Toast.makeText(context,"Download error: "+result, Toast.LENGTH_LONG).show();
                 Log.w(TAG, "ROM Download Failed: " + result);
+                btUpdate.setEnabled(true);
+                btUpdate.setText("Download Update");
+                downloading = false;
+                pbUpdate.setProgress(0);
             }
             else{
                 dmd5task.execute(dlAddress + deviceName + "/" + onServerVersion + ".md5sum");
@@ -514,12 +564,16 @@ public class MainActivity extends Activity {
             if (result != null){
                 Toast.makeText(context,"Download error: "+result, Toast.LENGTH_LONG).show();
                 Log.w(TAG, "ROM Download Failed: " + result);
+                btUpdate.setEnabled(true);
+                btUpdate.setText("Download Update");
+                downloading = false;
+                pbUpdate.setProgress(0);
             }
             else{
                 Log.w(TAG, "ROM Download Completed: " + result);
                 Toast.makeText(context,"Update downloaded", Toast.LENGTH_SHORT).show();
-                btUpdate.setEnabled(true);
-                btUpdate.setText("Download Update");
+                btUpdate.setEnabled(false);
+                btUpdate.setText("Download Complete");
                 downloading = false;
                 btInstall.setEnabled(true);
                 btInstall.setText("Install Update");
