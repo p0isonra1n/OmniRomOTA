@@ -47,7 +47,9 @@ public class MainActivity extends Activity {
     public static String onDeviceVersion = null;
     public static String onServerVersion = null;
     public static String deviceName = null;
+
     public final String dlAddress = "http://dl.omnirom.org/";
+    public final String TAG = "OmniRomOTA";
 
     public static boolean downloading = false;
 
@@ -190,6 +192,7 @@ public class MainActivity extends Activity {
     }
 
     public void getDeviceVersion() {
+        Log.i(TAG, "Getting Device Version");
         try
         {
             String[] cmds = new String[1];
@@ -205,6 +208,7 @@ public class MainActivity extends Activity {
             }
         }catch(Exception e) {
             Toast.makeText(getBaseContext(),"Device Version not found" , Toast.LENGTH_SHORT).show();
+            Log.w(TAG, "Device Not Found");
         }
     }
 
@@ -234,6 +238,7 @@ public class MainActivity extends Activity {
         @Override
         protected String doInBackground(String... urls) {
             String url = urls[0];
+            Log.i(TAG, "Server Version URL: " + urls[0]);
             String[] serverVersions = new String[256];
             int count = 0;
             List<String> myList = new ArrayList<String>();
@@ -257,7 +262,7 @@ public class MainActivity extends Activity {
                     result += line + "\n";
                 }
             }catch (Exception e){
-                Log.e("OmniRom OTA", "Getting rom list failed!");
+                Log.e(TAG, "Getting rom list failed!");
             }
 
             Pattern p = Pattern.compile("href=\"(.*?)\"");
@@ -278,6 +283,7 @@ public class MainActivity extends Activity {
 
         @Override
         protected void onPostExecute(String result) {
+            Log.i(TAG, "Server Version List Completed");
             onServerVersion = result;
             tvServerVersion.setText(onServerVersion.replace("omni", "OmniROM").replace(".zip", ""));
             //Check if update Available
@@ -318,6 +324,7 @@ public class MainActivity extends Activity {
                 HttpURLConnection connection = null;
                 try {
                     URL url = new URL(sUrl[0]);
+                    Log.i(TAG, "ROM URL: " + sUrl[0]);
                     connection = (HttpURLConnection) url.openConnection();
                     connection.connect();
 
@@ -334,6 +341,7 @@ public class MainActivity extends Activity {
                     // download the file
                     input = connection.getInputStream();
                     output = new FileOutputStream("/sdcard/OmniRomOTA/" + onServerVersion);
+                    Log.i(TAG, "ROM Save Location: " + "/sdcard/OmniRomOTA/" + onServerVersion);
 
                     byte data[] = new byte[65536];
                     long total = 0;
@@ -371,6 +379,7 @@ public class MainActivity extends Activity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+            Log.i(TAG, "Starting download of ROM");
             Toast.makeText(getBaseContext(), "Download Started", Toast.LENGTH_SHORT).show();
             btUpdate.setEnabled(false);
             downloading = true;
@@ -393,9 +402,11 @@ public class MainActivity extends Activity {
         protected void onPostExecute(String result) {
             if (result != null){
                 Toast.makeText(context,"Download error: "+result, Toast.LENGTH_LONG).show();
+                Log.w(TAG, "ROM Download Failed: " + result);
             }
             else{
-                dmd5task.execute(dlAddress + deviceName + "/" + onServerVersion.replace(".zip", ".md5sum"));
+                dmd5task.execute(dlAddress + deviceName + "/" + onServerVersion + ".md5sum");
+                Log.w(TAG, "ROM Download Completed: " + result);
             }
         }
     }
@@ -423,6 +434,7 @@ public class MainActivity extends Activity {
                 HttpURLConnection connection = null;
                 try {
                     URL url = new URL(sUrl[0]);
+                    Log.i(TAG, "MD5SUM URL: " + sUrl[0]);
                     connection = (HttpURLConnection) url.openConnection();
                     connection.connect();
 
@@ -439,6 +451,7 @@ public class MainActivity extends Activity {
                     // download the file
                     input = connection.getInputStream();
                     output = new FileOutputStream("/sdcard/OmniRomOTA/" + onServerVersion + ".md5sum");
+                    Log.i(TAG, "MD5SUM Save Location: " + "/sdcard/OmniRomOTA/" + onServerVersion + ".md5sum");
 
                     byte data[] = new byte[65536];
                     long total = 0;
@@ -476,6 +489,7 @@ public class MainActivity extends Activity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+            Log.i(TAG, "Starting MD5 Download");
             Toast.makeText(getBaseContext(), "Download Started", Toast.LENGTH_SHORT).show();
             btUpdate.setEnabled(false);
             downloading = true;
@@ -498,8 +512,10 @@ public class MainActivity extends Activity {
         protected void onPostExecute(String result) {
             if (result != null){
                 Toast.makeText(context,"Download error: "+result, Toast.LENGTH_LONG).show();
+                Log.w(TAG, "ROM Download Failed: " + result);
             }
             else{
+                Log.w(TAG, "ROM Download Completed: " + result);
                 Toast.makeText(context,"Update downloaded", Toast.LENGTH_SHORT).show();
                 btUpdate.setEnabled(true);
                 btUpdate.setText("Download Update");

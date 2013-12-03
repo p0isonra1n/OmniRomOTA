@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/App/App.iml" filepath="$PROJECT_DIR$/App/App.iml" />
       <module fileurl="file://$PROJECT_DIR$/OmniRomOTA.iml" filepath="$PROJECT_DIR$/OmniRomOTA.iml" />
       <module fileurl="file://$PROJECT_DIR$/App/OmniRomOTA_App.iml" filepath="$PROJECT_DIR$/App/OmniRomOTA_App.iml" />
     </modules>
