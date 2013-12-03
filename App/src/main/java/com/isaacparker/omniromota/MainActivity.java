@@ -15,6 +15,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.isaacparker.omniromota.Helpers.RootCommands;
 import com.stericson.RootTools.RootTools;
 import com.stericson.RootTools.execution.Command;
 import com.stericson.RootTools.execution.CommandCapture;
@@ -197,9 +198,7 @@ public class MainActivity extends Activity {
         Log.i(TAG, "Getting Device Version");
         try
         {
-            String[] cmds = new String[1];
-            cmds[0] = "getprop";
-            String result = CommandHelper.runAsRoot(cmds);
+            String result = RootCommands.CommandOutput("getprop");
             String[] PerLine = result.split("\n");
             for(int i = 0; i < PerLine.length; i++) {
                 if(PerLine[i].contains("ro.modversion")){
