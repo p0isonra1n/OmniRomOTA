@@ -79,9 +79,15 @@ public class MainActivity extends Activity {
 
         pbUpdate = (ProgressBar)findViewById(R.id.pbUpdate);
 
+        try
+        {
         if (!RootTools.isAccessGiven()) {
             Toast.makeText(getBaseContext(), "Root is required", Toast.LENGTH_SHORT).show();
             finish();
+        }
+        }catch (Exception e){
+            Log.e(TAG, "Can not get root");
+            e.printStackTrace();
         }
 
         //Get Versions
@@ -285,6 +291,7 @@ public class MainActivity extends Activity {
         @Override
         protected String doInBackground(String... urls) {
             String url = urls[0];
+            if(url.equals(null))return "No Device";
             Log.i(TAG, "Server Version URL: " + urls[0]);
             String[] serverVersions = new String[256];
             int count = 0;
