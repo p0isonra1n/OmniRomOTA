@@ -161,6 +161,8 @@ public class MainActivity extends Activity {
                             Toast.makeText(MainActivity.this, "File Incomplete", Toast.LENGTH_SHORT).show();
                             btUpdate.setEnabled(true);
                             btUpdate.setText("Download Update");
+                            btInstall.setEnabled(false);
+                            btInstall.setText("MD5 Mismatch");
                         }
                     }catch(Exception e){
                         e.printStackTrace();
