@@ -34,5 +34,6 @@ android {
 }
 
 dependencies {
+	compile 'com.android.support:support-v4:18.0.0'
     compile files('libs/RootTools-3.3.jar')
 }

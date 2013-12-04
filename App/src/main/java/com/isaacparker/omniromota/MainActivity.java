@@ -2,10 +2,13 @@ package com.isaacparker.omniromota;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -17,6 +20,7 @@ import android.widget.Toast;
 
 import com.isaacparker.omniromota.Helpers.RootCommands;
 import com.stericson.RootTools.RootTools;
+import com.stericson.RootTools.exceptions.RootDeniedException;
 import com.stericson.RootTools.execution.Command;
 import com.stericson.RootTools.execution.CommandCapture;
 
@@ -203,9 +207,24 @@ public class MainActivity extends Activity {
                                 CommandCapture command = new CommandCapture(0,"rm -f cache/recovery/openrecoveryscript",
                                     "echo install /sdcard/OmniRomOTA/" + onServerVersion + " >> /cache/recovery/openrecoveryscript",
                                     "echo wipe cache >> /cache/recovery/openrecoveryscript",
-                                    "echo wipe dalvik >> /cache/recovery/openrecoveryscript",
-                                    "reboot recovery");
+                                    "echo wipe dalvik >> /cache/recovery/openrecoveryscript");
                                 RootTools.getShell(true).add(command);
+                                SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                                Boolean additionalzip = sharedPref.getBoolean("checkbox_installadditionalfiles", false);
+                                if(additionalzip){
+                                    String[] extrazips = new String[64];
+                                    int count = 0;
+                                    File f = new File("/sdcard/OmniRomOTA/ExtraZips/");
+                                    File extrafiles[] = f.listFiles();
+                                    for(File extrafile : extrafiles){
+                                        extrazips[count] = "echo install " + extrafile.toString() + " >> /cache/recovery/openrecoveryscript";
+                                        count++;
+                                    }
+                                    CommandCapture commandextra = new CommandCapture(0, extrazips);
+                                    RootTools.getShell(true).add(commandextra);
+                                }
+                                CommandCapture commandreboot = new CommandCapture(0,"reboot recovery");
+                                RootTools.getShell(true).add(commandreboot);
                             }else
                             {
                                 Toast.makeText(MainActivity.this, "DEBUG Flash File", Toast.LENGTH_SHORT).show();
@@ -281,6 +300,8 @@ public class MainActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
             return true;
         }
         return super.onOptionsItemSelected(item);
